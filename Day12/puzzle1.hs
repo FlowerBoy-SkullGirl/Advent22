@@ -27,74 +27,65 @@ findInGrid c grid = [(x,y) | y <- [0..((length grid)-1)], x <- [0..((length (gri
 gridToInt :: String -> [Int]
 gridToInt s = [if x == 'E' then e_dest else (if x == 'S' then s_start else ord x) | x <- s] 
 
-canReachEinSteps :: [[Int]] -> Coord -> Coord -> [Coord] -> Int -> Int -> Int
-canReachEinSteps grid currentCoord dest_e previousCoords steps results
-    | results /= 0 && (steps > results) = results
-    | ((grid!!y)!!x) == 123 = steps
-    | null possibleNext = results
-    | otherwise = minimum $ ifNonZero $ map canReachHelper possibleNext
-    where possibleNext = possiblePaths currentCoord dest_e previousCoords grid
-          canReachHelper a = canReachEinSteps grid a dest_e (currentCoord:previousCoords) (steps+1) results
-          x = fst currentCoord
-          y = snd currentCoord
---          canReachHelper a
---            | (length a) == 1 = canReachEinSteps grid (a!!0) (currentCoord:previousCoords) (steps+1) results
---            | (length a) > 1 = canReachHelper (tail a) 
-          ifNonZero xs = if null xs' then xs else xs' where xs' = [x | x <- xs, x/=0]
-
-possiblePaths :: Coord -> Coord -> [Coord] -> [[Int]] -> [Coord]
-possiblePaths currentCoord dest_e previousCoords grid = [x | x <- directions, 
-                                                   (fst x) >= 0 && (snd x) >= 0
-                                                   && (snd x) < (length grid)
-                                                   && (fst x) < (length $ grid!!(snd x))
-                                                   && nth x
-                                                   && notAnyPrevious x previousCoords]
-                                                  -- && ntl x]
-    where directions = [(spotEast currentCoord), (spotNorth currentCoord), (spotSouth currentCoord), (spotWest currentCoord)]
-          directions' = orderDistance directions dest_e
-          nth x = notTooHigh currentCoord x grid
-         -- ntl x = notTooLow currentCoord x grid
-          notAnyPrevious x ys = if null [y | y <- ys, y == x] then True else False
-
---To cut down runtime.. assume that going down is invalid
-notTooLow :: Coord -> Coord -> [[Int]] -> Bool
-notTooLow a b grid = if h_b < h_a then False else True where
-    h_a = (grid!!(snd a))!!(fst a)
-    h_b = (grid!!(snd b))!!(fst b)
-
 notTooHigh :: Coord -> Coord -> [[Int]] -> Bool
 notTooHigh a b grid = if h_b > (h_a + 1) then False else True where
     h_a = (grid!!(snd a))!!(fst a)
     h_b = (grid!!(snd b))!!(fst b)
 
-orderDistance :: [Coord] -> Coord -> [Coord]
-orderDistance routes dest = map snd $ sort $ zipCoords distancesCoords dest routes
+findXinGrid :: Coord -> Int -> [[Int]] -> [(Coord,Int)] -> Int
+findXinGrid startPos x grid visited
+     | visited `containsCoord` startPos = x
+     | otherwise = findXinGrid startPos (x+1) grid visited'
+     where visited' = neighboursInReach x grid visited (coordsFilterX visited x)
+           containsCoord ys x = if not $ null [y | (y,z) <- ys, y == x && z >= 0] then True else False
 
-zipCoords :: (Coord -> Coord -> (Int,Int)) -> Coord -> [Coord] -> [(Int,Coord)]
-zipCoords f dest [] = []
-zipCoords f dest routes = ((distanceCoords $ f dest (head routes)),(head routes)):(zipCoords f dest (tail routes))
+neighboursInReach :: Int -> [[Int]] -> [(Coord,Int)] -> [(Coord,Int)] -> [(Coord,Int)]
+neighboursInReach x grid visited visitedX
+    | null visitedX = []
+    | (length visitedX) == 1 = findEligibleAdj (head visitedX) grid visited
+    | otherwise = findEligibleAdj (head visitedX) grid visited'
+    where visited' = neighboursInReach x grid visited (drop 1 visitedX)
 
-distancesCoords :: Coord -> Coord -> (Int, Int)
-distancesCoords x y = ((abs ((fst x)-(fst y))),(abs ((snd x)-(snd y))))
+coordsFilterX :: [(Coord,Int)] -> Int -> [(Coord,Int)]
+coordsFilterX all x = [allX | allX <- all, (snd allX) == x]
 
-distanceCoords :: (Int, Int) -> Int
-distanceCoords (a,b) = a + b
+findEligibleAdj :: (Coord,Int) -> [[Int]] -> [(Coord,Int)] -> [(Coord,Int)]
+findEligibleAdj (current,cx) grid previous = [(x,(cx+1)) | x <- adj,
+                                                   (fst x) >= 0 && (snd x) >= 0
+                                                   && (snd x) < (length grid)
+                                                   && (fst x) < (length $ grid!!(snd x))
+                                                   && notTooHigh x current grid
+                                                   && notAnyPrevious x previous] ++ previous
+    where adj = [(spotEast current),(spotNorth current),(spotSouth current),(spotWest current)]
+          notAnyPrevious x ys = if null [y | (y,z) <- ys, y == x && z >= 0] then True else False
 
+coordToStepPair :: [[Int]] -> Coord -> [(Coord, Int)]    
+coordToStepPair grid dest = [if (x,y) == dest then ((x,y),0) else ((x,y),(-1)) | y <- [0..((length grid)-1)], x <- [0..((length (grid!!y))-1)]]
+
+findXinGrid2 :: Int -> Int -> [[Int]] -> [(Coord,Int)] -> Int
+findXinGrid2 startH x grid visited
+     | containsVal visited startH grid = x
+     | otherwise = findXinGrid2 startH (x+1) grid visited'
+     where visited' = neighboursInReach x grid visited (coordsFilterX visited x)
+           containsVal ys x grid = if not $ null [z | ((h,v),z) <- ys, z >= 0, ((grid!!v)!!h) == x ] then True else False
 
 
 main = do
     inputTest <- readFile "topograph.test"
     input <- readFile "topograph.map"
     --Decide which input to use
-    --let grid = lines input
-    let grid = lines inputTest
+    let grid = lines input
+    --let grid = lines inputTest
     --find starting pos S
     let startPos = head $ findInGrid 'S' grid 
     let dest_e = head $ findInGrid 'E' grid
     --Convert the grid to height values in int
     let intGrid = map gridToInt grid
+    let coordGrid = coordToStepPair intGrid dest_e
     --Find all paths
-    let results = canReachEinSteps intGrid startPos dest_e (startPos:[]) 0 0
+    let results = findXinGrid startPos 0 intGrid coordGrid
+    let results2 = findXinGrid2 s_start 0 intGrid coordGrid
     --Remove any failed paths from results and find shortest
     print intGrid
     print results
+    print results2
