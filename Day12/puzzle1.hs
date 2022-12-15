@@ -32,6 +32,8 @@ notTooHigh a b grid = if h_b > (h_a + 1) then False else True where
     h_a = (grid!!(snd a))!!(fst a)
     h_b = (grid!!(snd b))!!(fst b)
 
+--If list of prev has start pos, return number of steps from end
+--if not, find all positions that are 1 step farther from the end to see if they have start
 findXinGrid :: Coord -> Int -> [[Int]] -> [(Coord,Int)] -> Int
 findXinGrid startPos x grid visited
      | visited `containsCoord` startPos = x
@@ -39,6 +41,7 @@ findXinGrid startPos x grid visited
      where visited' = neighboursInReach x grid visited (coordsFilterX visited x)
            containsCoord ys x = if not $ null [y | (y,z) <- ys, y == x && z >= 0] then True else False
 
+--Find all adj positions such that they are at most one step away from the current round
 neighboursInReach :: Int -> [[Int]] -> [(Coord,Int)] -> [(Coord,Int)] -> [(Coord,Int)]
 neighboursInReach x grid visited visitedX
     | null visitedX = []
@@ -46,9 +49,11 @@ neighboursInReach x grid visited visitedX
     | otherwise = findEligibleAdj (head visitedX) grid visited'
     where visited' = neighboursInReach x grid visited (drop 1 visitedX)
 
+--Select only the previous coordinates at x steps away from start
 coordsFilterX :: [(Coord,Int)] -> Int -> [(Coord,Int)]
 coordsFilterX all x = [allX | allX <- all, (snd allX) == x]
 
+--Reject adj coords that are off grid, too low to reach current coord, or already evaluated
 findEligibleAdj :: (Coord,Int) -> [[Int]] -> [(Coord,Int)] -> [(Coord,Int)]
 findEligibleAdj (current,cx) grid previous = [(x,(cx+1)) | x <- adj,
                                                    (fst x) >= 0 && (snd x) >= 0
@@ -59,9 +64,11 @@ findEligibleAdj (current,cx) grid previous = [(x,(cx+1)) | x <- adj,
     where adj = [(spotEast current),(spotNorth current),(spotSouth current),(spotWest current)]
           notAnyPrevious x ys = if null [y | (y,z) <- ys, y == x && z >= 0] then True else False
 
+
 coordToStepPair :: [[Int]] -> Coord -> [(Coord, Int)]    
 coordToStepPair grid dest = [if (x,y) == dest then ((x,y),0) else ((x,y),(-1)) | y <- [0..((length grid)-1)], x <- [0..((length (grid!!y))-1)]]
 
+--Instead of the starting coord, find any coord height 'a'
 findXinGrid2 :: Int -> Int -> [[Int]] -> [(Coord,Int)] -> Int
 findXinGrid2 startH x grid visited
      | containsVal visited startH grid = x
