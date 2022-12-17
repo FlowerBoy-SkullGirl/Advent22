@@ -26,25 +26,26 @@ lowestObstacle :: [Coord] -> Int
 lowestObstacle obstacles = maximum [snd y | y <- obstacles]
 
 --Subtract one from empty grid pattern because result is reported by previous recursion that adds one after having found solution
-newSand :: Int -> [Coord] -> Int -> Int
-newSand x [] hAbyss = x - 1
-newSand x grid hAbyss = newSand (x+1) grid' hAbyss where
-    grid' = moveSand grid hAbyss sandSource
-    sandSource = (500,0)
+newSand :: Int -> Set.Set Coord -> Int -> Int
+newSand x grid hAbyss 
+    | grid == Set.empty = x - 1
+    | otherwise = newSand (x+1) grid' hAbyss 
+    where grid' = moveSand grid hAbyss sandSource
+          sandSource = (500,0)
 
 --Y coords are upside down, sand is "falling up." Use North to check below sand
-moveSand :: [Coord] -> Int -> Coord -> [Coord]
+moveSand :: Set.Set Coord -> Int -> Coord -> Set.Set Coord
 moveSand grid hA current
-    | (snd current) >= hA = []
+    | (snd current) >= hA = Set.empty
     | noObs (spotNorth current) = moveSand grid hA (spotNorth current)
     | noObs $ (spotWest . spotNorth) current = moveSand grid hA ((spotWest . spotNorth) current)
     | noObs $ (spotEast . spotNorth) current = moveSand grid hA ((spotEast . spotNorth) current)
-    | otherwise = current:grid
+    | otherwise = Set.insert current grid
     where noObs x = not $ checkObstacle grid x
 
-checkObstacle :: [Coord] -> Coord -> Bool
+checkObstacle :: Set.Set Coord -> Coord -> Bool
 --checkObstacle grid coord = if null [x | x <- grid, x == coord] then False else True
-checkObstacle grid coord = if coord `elem` grid then True else False
+checkObstacle grid coord = if coord `Set.member` grid then True else False
 
 spotSouth :: Coord -> Coord
 spotSouth (x,y) = (x,(y-1))
@@ -63,6 +64,6 @@ main = do
     input <- readFile "cave.in"
     inputTest <- readFile "cave.test"
     --let obstacles = concat $ map obstacleBuilder $ map parseIn $ lines inputTest
-    let obstacles = concat $ map obstacleBuilder $ map parseIn $ lines input
-    let result = newSand 0 obstacles (lowestObstacle obstacles)
+    let obstacles = Set.fromList $ concat $ map obstacleBuilder $ map parseIn $ lines input
+    let result = newSand 0 obstacles (lowestObstacle $ Set.toList obstacles)
     print result
