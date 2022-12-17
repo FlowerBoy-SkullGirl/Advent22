@@ -33,6 +33,13 @@ newSand x grid hAbyss
     where grid' = moveSand grid hAbyss sandSource
           sandSource = (500,0)
 
+newSand2 :: Int -> Set.Set Coord -> Int -> Int
+newSand2 x grid hAbyss 
+    | grid == Set.empty = x - 1
+    | otherwise = newSand2 (x+1) grid' hAbyss
+    where grid' = moveSand2 grid hAbyss sandSource
+          sandSource = (500,0)
+
 --Y coords are upside down, sand is "falling up." Use North to check below sand
 moveSand :: Set.Set Coord -> Int -> Coord -> Set.Set Coord
 moveSand grid hA current
@@ -42,6 +49,17 @@ moveSand grid hA current
     | noObs $ (spotEast . spotNorth) current = moveSand grid hA ((spotEast . spotNorth) current)
     | otherwise = Set.insert current grid
     where noObs x = not $ checkObstacle grid x
+
+moveSand2 :: Set.Set Coord -> Int -> Coord -> Set.Set Coord
+moveSand2 grid hA current
+    | checkObstacle grid spotSource = Set.empty
+    | (snd $ spotNorth current) == hA = Set.insert current grid
+    | noObs (spotNorth current) = moveSand2 grid hA (spotNorth current)
+    | noObs $ (spotWest . spotNorth) current = moveSand2 grid hA ((spotWest . spotNorth) current)
+    | noObs $ (spotEast . spotNorth) current = moveSand2 grid hA ((spotEast . spotNorth) current)
+    | otherwise = Set.insert current grid
+    where noObs x = not $ checkObstacle grid x
+          spotSource = (500,0)
 
 checkObstacle :: Set.Set Coord -> Coord -> Bool
 --checkObstacle grid coord = if null [x | x <- grid, x == coord] then False else True
@@ -65,5 +83,8 @@ main = do
     inputTest <- readFile "cave.test"
     --let obstacles = concat $ map obstacleBuilder $ map parseIn $ lines inputTest
     let obstacles = Set.fromList $ concat $ map obstacleBuilder $ map parseIn $ lines input
-    let result = newSand 0 obstacles (lowestObstacle $ Set.toList obstacles)
+    let heightAbyss = lowestObstacle (Set.toList obstacles)
+    let result = newSand 0 obstacles heightAbyss
+    let result2 = newSand2 0 obstacles (heightAbyss + 2)
     print result
+    print result2
